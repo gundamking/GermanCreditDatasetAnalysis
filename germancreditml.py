@@ -345,7 +345,7 @@ dot_data= StringIO()
 export_graphviz(decision_tree= tree, out_file=dot_data,
                 filled= True, feature_names=x.columns)
 graph= pydotplus.graph_from_dot_data(dot_data.getvalue())
-Image(value=graph.create_png())
+#Image(value=graph.create_png())
 
 ##Logistic Regression
 
@@ -371,7 +371,87 @@ print('LR',' recall_train:', round(recall_train,2),' auc_roc_train:', round(roc_
 tuned_models_train.append(('LR',' recall_train:', round(recall_train,2),' auc_roc_train:', round(roc_train,2)))
 print(classification_report(y_test, log_reg.predict(x_test)))
 
-##
+##Random Forest
+
+# create model with default parameters- baseline
+rf_baseline = RandomForestClassifier(random_state=42, n_jobs=-1)
+
+# Train it on the training set
+cv_result_baseline= cross_val_score(rf_baseline, x_test, y_test, cv=skf)
+
+# Evalute the results (cross-val)
+print("CV accuracy score: {:.2f}%".format(cv_result_baseline.mean() * 100))
+
+# train model
+rf_baseline.fit(x_train, y_train)
+
+pred_test_rf= rf_baseline.predict(x_test)
+print("Test accuracy score: {:.2f}%".format((accuracy_score(pred_test_rf, y_test) * 100)))
 
 
+# Create lists to save the values of accuracy on training and test sets
+train_acc = []
+test_acc = []
+temp_train_acc
+trees_grid = [5, 10, 15, 20, 30, 50, 75, 100]
 
+train_acc, test_acc
+
+
+print("Best CV accuracy is {:.2f}% with {} trees".format(max(test_acc)*100,
+                                                        trees_grid[np.argmax(test_acc)]))
+
+
+plt.plot(trees_grid, train_acc, label='train')
+plt.plot(trees_grid, test_acc, label='test')
+plt.legend()
+plt.xlabel('No. of trees (n_estimators)')
+plt.ylabel('Accuracies')
+plt.title('Random-Forest: accuracy vs n_estimators');
+
+
+# Create lists to save the values of accuracy on training and test sets
+train_acc = []
+test_acc = []
+temp_train_acc
+max_depth_grid = [3, 5, 7, 9, 11, 13, 15, 17, 20, 22, 24]
+
+for max_depth in max_depth_grid:
+    rf = RandomForestClassifier(n_estimators=50, random_state=42, n_jobs=-1, max_depth=max_depth).fit(x_train, y_train)
+    temp_train_acc=cross_val_score(rf, x_test, y_test, cv=skf)
+    train_acc.append(temp_train_acc.mean())
+    test_acc.append(accuracy_score(rf.predict(x_test), y_test))
+
+print("Best CV accuracy is {:.2f}% with {} max_depth".format(max(test_acc)*100,
+                                                        max_depth_grid[np.argmax(test_acc)]))
+
+
+plt.plot(max_depth_grid, train_acc, label='train')
+plt.plot(max_depth_grid, test_acc, label='test')
+plt.legend()
+plt.xlabel('max_depth')
+plt.ylabel('Accuracies')
+plt.title('Random-Forest: accuracy vs max_depth');
+
+
+# Create lists to save the values of accuracy on training and test sets
+train_acc = []
+test_acc = []
+temp_train_acc = []
+min_samples_leaf_grid = [1, 3, 5, 7, 9, 11, 13, 15, 17, 20, 22, 24]
+
+for min_sample in min_samples_leaf_grid:
+    rf = RandomForestClassifier(n_estimators=50, random_state=42, n_jobs=-1, min_samples_leaf=min_sample).fit(x_train, y_train)
+    temp_train_acc=cross_val_score(rf, x_test, y_test, cv=skf)
+    train_acc.append(temp_train_acc.mean())
+    test_acc.append(accuracy_score(rf.predict(x_test), y_test))
+
+print("Best CV accuracy is {:.2f}% with {} min_sample_leaf".format(max(test_acc)*100,
+                                                        min_samples_leaf_grid[np.argmax(test_acc)]))
+
+plt.plot(min_samples_leaf_grid, train_acc, label='train')
+plt.plot(min_samples_leaf_grid, test_acc, label='test')
+plt.legend()
+plt.xlabel('min_sample_leaf')
+plt.ylabel('Accuracies')
+plt.title('Random-Forest: accuracy vs min_sample_leaf');
