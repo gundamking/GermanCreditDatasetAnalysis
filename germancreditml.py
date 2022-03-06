@@ -18,13 +18,14 @@ from sklearn.naive_bayes import GaussianNB
 
 from sklearn.metrics import f1_score
 
-df = pd.read_csv("german.data", header= None)
-print(df.shape)
-target = df.values[:,-1]
-counter = Counter(target)
-for k,v in counter.items():
-    per = v / len(target)*100
-    print('Class %d, Count %d, Percentage=% .3f%%' % (k, v, per))
+
+# load and summarize the dataset
+from pandas import read_csv
+from collections import Counter
+# define the dataset location
+filename = 'german.data'
+german_df = pd.read_csv(filename,header=None)
+german_df.info()
 
 
 
