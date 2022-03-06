@@ -127,15 +127,251 @@ print('Most Positive Correlations:\n', correlations.tail(15))
 print('\nMost Negative Correlations:\n', correlations.head(15))
 
 # Extract the significantly correlated variables
-#corr_data = credit_df[['duration','credit_amount',
-                   'installment_rate','residence_since',
-                   'age','number_of_existcr','number_of_dependents','telephone',
-                   'foreign','target']]
+#corr_data = credit_df[['duration','credit_amount','installment_rate','residence_since','age','number_of_existcr','number_of_dependents','telephone','foreign','target']]
+#corr_data_corrs = corr_data.corr()
+
+
+# Heatmap of correlations
+#sns.heatmap(corr_data_corrs, cmap = plt.cm.RdYlBu_r, vmin = -0.25, annot = True, vmax = 0.6)
+#plt.title('Correlation Heatmap');
+#plt.show()
+
+
+# Extract the significantly correlated variables
+corr_data = credit_df[['target', 'account_bal_neg_bal','duration','account_bal_no_acc']]
 corr_data_corrs = corr_data.corr()
 
 
 # Heatmap of correlations
-sns.heatmap(corr_data_corrs, cmap = plt.cm.RdYlBu_r, vmin = -0.25, annot = True, vmax = 0.6)
-plt.title('Correlation Heatmap');
-plt.show()
+#sns.heatmap(corr_data_corrs, cmap = plt.cm.RdYlBu_r, vmin = -0.25, annot = True, vmax = 0.6)
+#plt.title('Correlation Heatmap');
+#plt.show()
+
+
+# Make a new dataframe for polynomial features
+poly_features = credit_df[['duration', 'account_bal_neg_bal', 'account_bal_no_acc']]
+poly_target = credit_df['target']
+
+from sklearn.preprocessing import PolynomialFeatures
+
+# Create the polynomial object with specified degree
+poly_transformer = PolynomialFeatures(degree=2)
+# Train the polynomial features
+poly_transformer.fit(poly_features)
+
+# Transform the features
+poly_features = poly_transformer.transform(poly_features)
+print('Polynomial Features shape: ', poly_features.shape)
+
+print(poly_transformer.get_feature_names(input_features = ['duration','account_bal_neg_bal','account_bal_no_acc']))
+
+# Create a dataframe for polynomial features
+poly_features = pd.DataFrame(
+    poly_features, columns = poly_transformer.get_feature_names(
+        ['duration','account_bal_neg_bal','account_bal_no_acc']))
+
+# Add in the target
+poly_features['target'] = poly_target
+
+# Find the correlations with the target
+poly_corrs = poly_features.corr()['target'].sort_values()
+
+# Display the correlations
+print(poly_corrs)
+
+print(list(poly_features))
+
+#deleting duplicate columns in poly_features
+
+for i in list(poly_features.columns):
+  for j in list(credit_df.columns):
+    if (i==j):
+      poly_features.drop(labels=i, axis=1, inplace=True)
+
+poly_features.drop(labels='1', axis=1, inplace=True)
+print(list(poly_features))
+
+
+from sklearn. model_selection import train_test_split
+x, y = credit_df.drop('target', axis=1), credit_df['target']
+print(x.shape, y.shape)
+
+x_train, x_test, y_train,y_test= train_test_split(x,y, test_size=.2, random_state=42)
+print(x_train.shape, x_test.shape)
+# Let's normalize the features to prevent undue influence in the model.
+
+from sklearn.preprocessing import MinMaxScaler
+
+# scale each feature to 0-1
+scaler = MinMaxScaler(feature_range = (0, 1))
+
+# fit on features dataset
+scaler.fit(x_train)
+scaler.fit(x_test)
+x_train= scaler.transform(x_train)
+x_test= scaler.transform(x_test)
+
+
+y.value_counts(normalize=True)
+
+# import packages, functions, and classes
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+from sklearn.naive_bayes import GaussianNB
+from sklearn.svm import SVC
+
+from sklearn.metrics import roc_auc_score, recall_score, classification_report
+from sklearn.model_selection import StratifiedKFold, cross_val_score, cross_validate
+
+# prepare models
+models = []
+models.append(('DT', DecisionTreeClassifier(random_state=42)))
+models.append(('LR', LogisticRegression(random_state=42)))
+models.append(('RF', RandomForestClassifier(random_state=42)))
+models.append(('NB', GaussianNB()))
+models.append(('KNN', KNeighborsClassifier()))
+models.append(('SVM', SVC(gamma='auto', random_state=42)))
+
+models.append(('LDA', LinearDiscriminantAnalysis()))
+models.append(('CART', DecisionTreeClassifier()))
+
+
+# evaluate each model in turn
+results_recall = []
+results_roc_auc = []
+names = []
+# recall= tp/ (tp+fn). Best value=1, worst value=0
+scoring = ['recall', 'roc_auc']
+
+for name, model in models:
+    # split dataset into k folds. use one fold for validation and remaining k-1 folds for training
+    skf = StratifiedKFold(n_splits=10, shuffle=True, random_state=42)
+    # Evaluate a score by cross-validation. Returns array of scores of the model for each run of the cross validation.
+    # cv_results = cross_val_score(model, x_train, y_train, cv=skf, scoring=scoring)
+    cv_results = cross_validate(model, x_train, y_train, cv=skf, scoring=scoring)
+    results_recall.append(cv_results['test_recall'])
+    results_roc_auc.append(cv_results['test_roc_auc'])
+    names.append(name)
+    msg = "%s- recall:%f roc_auc:%f" % (name, cv_results['test_recall'].mean(), cv_results['test_roc_auc'].mean())
+    print(msg)
+
+# boxplot algorithm comparison
+fig = plt.figure(figsize=(11, 6))
+fig.suptitle('Recall scoring Comparison')
+ax = fig.add_subplot(111)
+plt.boxplot(results_recall, showmeans=True)
+ax.set_xticklabels(names)
+#plt.show();
+
+fig = plt.figure(figsize=(11, 6))
+fig.suptitle('AUC scoring Comparison')
+ax = fig.add_subplot(111)
+plt.boxplot(results_roc_auc, showmeans=True)
+ax.set_xticklabels(names)
+#plt.show();
+
+from sklearn.tree import DecisionTreeClassifier
+
+# initialize a tree
+tree= DecisionTreeClassifier(random_state=42)
+
+# fit model
+tree.fit(x_train, y_train)
+
+# predict
+pred_test= tree.predict(x_test)
+
+pred_test.shape, y_test.shape
+
+from sklearn.metrics import accuracy_score, confusion_matrix
+
+accuracy_score(y_test, pred_test)
+
+from sklearn.model_selection import StratifiedKFold, cross_val_score
+
+skf= StratifiedKFold(n_splits=10, shuffle=True, random_state=42)
+
+val_scores= cross_val_score(estimator=tree, X=x_train, y=y_train, cv=skf)
+
+val_scores
+
+val_scores.mean()
+
+# to display progress of a loop
+
+# fit model for different values of max_depth without using GridSearchCV
+
+cv_accuracies_by_depth, test_accuracies_by_depth = [], []
+max_depth_values = np.arange(2, 11)
+
+from tqdm import notebook
+# for each value of max_depth
+for curr_max_depth in notebook.tqdm(max_depth_values):
+    tree = DecisionTreeClassifier(random_state=42, max_depth=curr_max_depth)
+
+    # perform cross-validation
+    val_scores = cross_val_score(estimator=tree, X=x_train, y=y_train, cv=skf)
+    cv_accuracies_by_depth.append(val_scores.mean())
+
+    # assess the model with a test test
+    tree.fit(x_train, y_train)
+    curr_pred = tree.predict(x_test)
+    test_accuracies_by_depth.append(accuracy_score(curr_pred, y_test))
+
+
+# validation curve
+plt.plot(max_depth_values, cv_accuracies_by_depth, label='cv')
+plt.plot(max_depth_values, test_accuracies_by_depth, label='test')
+plt.legend()
+plt.xlabel('max depth')
+plt.ylabel('accuracies')
+plt.title('Decision-Tree validation curve for max_depth');
+
+# fit tree
+tree= DecisionTreeClassifier( random_state=42, max_depth=3).fit(x_train, y_train)
+
+# generate graph locally
+
+from io import StringIO
+import pydotplus
+from ipywidgets import Image
+from sklearn.tree import export_graphviz
+dot_data= StringIO()
+
+export_graphviz(decision_tree= tree, out_file=dot_data,
+                filled= True, feature_names=x.columns)
+graph= pydotplus.graph_from_dot_data(dot_data.getvalue())
+Image(value=graph.create_png())
+
+##Logistic Regression
+
+tuned_models_test=[]
+tuned_models_train=[]
+
+# Create the model with the specified regularization parameter
+log_reg = LogisticRegression(C = 0.0001, random_state=42)
+
+# Train on the training data
+log_reg.fit(x_train, y_train)
+
+# Evaluate on test dataset
+recall_test= recall_score(y_test,log_reg.predict(x_test))
+roc_test=roc_auc_score(y_test,log_reg.predict_proba(x_test)[:, 1])
+print('LR',' recall_test:', round(recall_test,2),' auc_roc_test:', round(roc_test,2))
+tuned_models_test.append(('LR',' recall_test:', round(recall_test,2),' auc_roc_test:', round(roc_test,2)))
+
+# Evaluate on train dataset
+roc_train= cross_val_score(log_reg, x_train, y_train, cv=skf, scoring='roc_auc').mean()
+recall_train= cross_val_score(log_reg, x_train, y_train, cv=skf, scoring='recall').mean()
+print('LR',' recall_train:', round(recall_train,2),' auc_roc_train:', round(roc_train,2))
+tuned_models_train.append(('LR',' recall_train:', round(recall_train,2),' auc_roc_train:', round(roc_train,2)))
+print(classification_report(y_test, log_reg.predict(x_test)))
+
+##
+
+
 
