@@ -433,6 +433,21 @@ plt.xlabel('max_depth')
 plt.ylabel('Accuracies')
 plt.title('Random-Forest: accuracy vs max_depth');
 
+# create model with default parameters- baseline
+rf_baseline = RandomForestClassifier(random_state=42, n_jobs=-1)
+
+# Train it on the training set
+cv_result_baseline= cross_val_score(rf_baseline, x_test, y_test, cv=skf)
+
+# Evalute the results (cross-val)
+print("CV accuracy score: {:.2f}%".format(cv_result_baseline.mean() * 100))
+
+
+# train model
+rf_baseline.fit(x_train, y_train)
+
+pred_test_rf= rf_baseline.predict(x_test)
+print("Test accuracy score: {:.2f}%".format((accuracy_score(pred_test_rf, y_test) * 100)))
 
 # Create lists to save the values of accuracy on training and test sets
 train_acc = []
@@ -455,3 +470,13 @@ plt.legend()
 plt.xlabel('min_sample_leaf')
 plt.ylabel('Accuracies')
 plt.title('Random-Forest: accuracy vs min_sample_leaf');
+
+# Initialize the set of parameters for exhaustive search and fit
+parameters = {'max_features': [7, 10, 16, 18],
+              'min_samples_leaf': [1, 3, 5, 7],
+              'max_depth': [15, 20, 24, 27]}
+rf = RandomForestClassifier(n_estimators=50, random_state=42, n_jobs=-1)
+gcv = GridSearchCV(rf, parameters, n_jobs=-1, cv=skf, verbose=1)
+gcv.fit(x_train, y_train)
+
+gcv.best_params_, gcv.best_score_
